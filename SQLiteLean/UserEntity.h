@@ -14,4 +14,5 @@
 @property (nonatomic, copy) NSString  *userName;
 @property (nonatomic, copy) NSString  *birthday;
 @property (nonatomic, copy) NSString  *city;
+@property (nonatomic, copy) NSString  *country;
 @end

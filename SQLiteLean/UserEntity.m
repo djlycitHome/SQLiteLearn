@@ -10,4 +10,7 @@
 
 @implementation UserEntity
 
+- (NSString *)description{
+    return [NSString stringWithFormat:@"the pid is:%@, the userId is %@, the userName is %@, the country is %@", @(self.pid), self.userId, self.userName, self.country];
+}
 @end

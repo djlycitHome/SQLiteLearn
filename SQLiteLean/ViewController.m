@@ -21,6 +21,8 @@ NSString *const     DATABASE_RESOURCE_TYPE       =  @"db";
 NSString *const     WALLET_DB                    =  @"wallet.db";
 NSString *const     WALLET_DB_FILE_NAME          =  @"wallet";
 
+NSUInteger const    PAGE_NUMBER                  = 3;
+
 @interface ViewController ()
 @property (nonatomic, strong)FMDatabase *db;
 @end
@@ -33,7 +35,7 @@ NSString *const     WALLET_DB_FILE_NAME          =  @"wallet";
     
     //简单应用
     [self simple];
-
+    
     //复杂应用
     [self complex];
     
@@ -86,14 +88,18 @@ NSString *const     WALLET_DB_FILE_NAME          =  @"wallet";
     // Dispose of any resources that can be recreated.
 }
 
-- (void)open_DBWithPath:(NSString *) filePath{
-    
+- (BOOL)open_DBWithPath:(NSString *) filePath{
+    BOOL ret = false;
     self.db = [FMDatabase databaseWithPath:filePath];
     
     if (![self.db open])
     {
         NSLog(@"Open database error!");
+    }else{
+        ret = YES;
     }
+    
+    return ret;
 }
 
 - (void)close_DB{
@@ -122,45 +128,61 @@ NSString *const     WALLET_DB_FILE_NAME          =  @"wallet";
 - (void)complex{
     //创建数据库--------1
     [self createWalletDatabase];
-    //创建表-----------2
     
+    //创建表-----------2
+    [self createTable];
+    
+    //创建数据
+    NSArray *userList = [self createData];
     
     //插入数据----------3
+    [self saveUserList:userList];
+    
     //查询-------------4
+    NSArray *users = [self getUsersWithLimitStart:3];
+    NSLog(@"the users are %@",users);
+    
     //修改表结构--------5
+    [self alterUserTable];
+    
+    //查询新数据-------6
+    NSArray *newUsers = [self getNewUsersWithLimitStart:3];
+    NSLog(@"the new users are %@",newUsers);
 }
 
 //创建数据库
-- (void)createWalletDatabase{
+- (BOOL)createWalletDatabase{
+    BOOL ret = false;
     NSString *writableDBPath = [DOCUMENT_FOLDER stringByAppendingPathComponent:WALLET_DB];
     
     NSFileManager *fileManager = [NSFileManager defaultManager];
     
     BOOL success = [fileManager fileExistsAtPath:writableDBPath];
     if (success) {
-        
-        return;
+         //存在先删除吧
+         [fileManager removeItemAtPath:writableDBPath error:nil];
     };
-
+    
     //打开数据库文件,不存在则创建
-    [self open_DBWithPath:writableDBPath];
+    ret = [self open_DBWithPath:writableDBPath];
+    return ret;
 }
 
 //创建表
 - (BOOL)createTable{
     BOOL ret = false;
-
-        NSString *strCreatUsertable = [NSString stringWithFormat:
-                                       @"create table if not exists T_User\n"
-                                       "(pid INTEGER PRIMARY KEY AUTOINCREMENT,\n"
-                                       "userId VARCHAR(20) NOT NULL UNIQUE,\n"
-                                       "userName VARCHAR(64) NOT NULL,\n"
-                                       "birthday VARCHAR(64),\n"
-                                       "city VARCHAR(20))\n"
-                                       ];
-             NSLog(@"%@",strCreatUsertable);
-        
-        ret = [self.db executeUpdate:strCreatUsertable];
+    
+    NSString *strCreatUsertable = [NSString stringWithFormat:
+                                   @"create table if not exists T_User\n"
+                                   "(pid INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                                   "userId VARCHAR(20) NOT NULL UNIQUE,\n"
+                                   "userName VARCHAR(64) NOT NULL,\n"
+                                   "birthday VARCHAR(64),\n"
+                                   "city VARCHAR(20))\n"
+                                   ];
+    NSLog(@"%@",strCreatUsertable);
+    
+    ret = [self.db executeUpdate:strCreatUsertable];
     return ret;
 }
 
@@ -235,5 +257,61 @@ NSString *const     WALLET_DB_FILE_NAME          =  @"wallet";
     return pid;
 }
 
+//查询数据
+- (NSArray *)getUsersWithLimitStart:(int) index{
+
+    NSString *sql = @"select pid, userId, userName, birthday, city from T_User limit ?, ?";
+    NSMutableArray *districtArray = [[NSMutableArray alloc] init];
+    
+    FMResultSet *rs = [self.db executeQuery:sql,@(index),@(PAGE_NUMBER)];
+    while ([rs next]) {
+        UserEntity *user = [[UserEntity alloc] init];
+        user.pid = [rs intForColumn:@"pid"];
+        user.userId = [rs stringForColumn:@"userId"];
+        user.userName = [rs stringForColumn:@"userName"];
+        user.birthday = [rs stringForColumn:@"birthday"];
+        user.city = [rs stringForColumn:@"city"];
+        [districtArray addObject:user];
+    }
+    [rs close];
+    
+    return districtArray;
+}
+
+//修改表结构
+- (BOOL)alterUserTable{
+        
+    BOOL ret = FALSE;
+
+    NSString *strAlterUserTable = [NSString stringWithFormat:
+                                              @"ALTER TABLE T_User ADD country VARCHAR(64) default '中国';"
+                                              ];
+    ret = [self.db executeUpdate:strAlterUserTable];
+        
+    
+    return ret;
+}
+
+//查询数据
+- (NSArray *)getNewUsersWithLimitStart:(int) index{
+    
+    NSString *sql = @"select pid, userId, userName, birthday, city, country from T_User limit ?, ?";
+    NSMutableArray *districtArray = [[NSMutableArray alloc] init];
+    
+    FMResultSet *rs = [self.db executeQuery:sql,@(index),@(PAGE_NUMBER)];
+    while ([rs next]) {
+        UserEntity *user = [[UserEntity alloc] init];
+        user.pid = [rs intForColumn:@"pid"];
+        user.userId = [rs stringForColumn:@"userId"];
+        user.userName = [rs stringForColumn:@"userName"];
+        user.birthday = [rs stringForColumn:@"birthday"];
+        user.city = [rs stringForColumn:@"city"];
+        user.country = [rs stringForColumn:@"country"];
+        [districtArray addObject:user];
+    }
+    [rs close];
+    
+    return districtArray;
+}
 
 @end
